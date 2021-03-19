@@ -11,3 +11,4 @@ Legend:
 | `torchvision.datasets.`     | Status             |
 |:----------------------------|--------------------|
 | [`Caltech101`](caltech101/) | :x:                |
+| [`Caltech256`](caltech256/) | :heavy_check_mark: |
