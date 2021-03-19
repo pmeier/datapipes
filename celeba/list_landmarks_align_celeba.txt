@@ -1,0 +1,8 @@
+6
+lefteye_x rightmouth_y
+000001.jpg 2 1
+000002.jpg 0 2
+000003.jpg 2 5
+000004.jpg 0 0
+000005.jpg 1 6
+000006.jpg 2 9
