@@ -7,13 +7,12 @@ import torch.utils.data.datapipes as dp
 from torch.utils.data.datapipes.utils.decoder import imagehandler
 
 
-data_dir = pathlib.Path("data/caltech101")
-# images_archive = data_dir / "101_ObjectCategories.tar.gz"
-# uncomment the line below to use an aligned image archive instead
-images_archive = data_dir / "101_ObjectCategories_aligned.tar.gz"
-annotations_archive = data_dir / "101_Annotations.tar"
+images_archive = "101_ObjectCategories_aligned.tar.gz"
+# uncomment the line below to use the default image archive instead
+# images_archive = "101_ObjectCategories.tar.gz"
+annotations_archive = "101_Annotations.tar"
 
-images_dp1 = dp.iter.LoadFilesFromDisk((str(images_archive),))
+images_dp1 = dp.iter.LoadFilesFromDisk((images_archive,))
 images_dp2 = dp.iter.ReadFilesFromTar(images_dp1)
 images_dp3 = dp.iter.RoutedDecoder(images_dp2, handlers=[imagehandler("pil")])
 images_dp = images_dp3
@@ -38,7 +37,7 @@ def mathandler(**loadmat_kwargs: Any) -> MatHandler:
     return MatHandler(**loadmat_kwargs)
 
 
-annotations_dp1 = dp.iter.LoadFilesFromDisk((str(annotations_archive),))
+annotations_dp1 = dp.iter.LoadFilesFromDisk((annotations_archive,))
 annotations_dp2 = dp.iter.ReadFilesFromTar(annotations_dp1)
 annotations_dp3 = dp.iter.RoutedDecoder(annotations_dp2, handlers=[mathandler()])
 annotations_dp = annotations_dp3
