@@ -9,7 +9,11 @@ This a proof-of-concept repository on how `torch.utils.data.datapipes` can be us
   files. Maybe even an `opener` parameter would be better that defaults to `open` and respects `mode`.
 - Files loaded with `get_file_binaries_from_pathnames` used in `dp.iter.LoadFilesFromDisk` are never closed.
 - `dp.Iter.RoutedDecoder` only accepts `(path, buffer)` inputs, which is not usable for us. Our datasets return a 
-  buffer as well as some additional information. 
+  buffer as well as some additional information.
+- It feels weird to call `dp.iter.LoadFilesFromDisk` for a single file, which is usually the case for our datasets.
+- I'm aware that this is not possible if we are streaming archives, but if that is not the case, we should be able to 
+  read specific files from an archive. Some datasets contain metadata in a separate file that should be available as 
+  soon as we create the dataset rather than based on luck when it is stream with the other files.
 
 ## Datasets
 
