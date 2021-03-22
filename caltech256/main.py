@@ -27,4 +27,3 @@ class Caltech256(IterDataPipe):
 for image, features in Caltech256("."):
     assert isinstance(image, PIL.Image.Image)
     print(features)
-

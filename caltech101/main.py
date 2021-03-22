@@ -49,7 +49,7 @@ CLASS_MAP = {
     "Faces": "Faces_2",
     "Faces_easy": "Faces_3",
     "Motorbikes": "Motorbikes_16",
-    "airplanes": "Airplanes_Side_2"
+    "airplanes": "Airplanes_Side_2",
 }
 
 

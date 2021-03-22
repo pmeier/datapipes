@@ -12,12 +12,11 @@ from torch.utils.data.datapipes.utils.decoder import imagehandler
 
 class ReadRowsFromCsv(IterDataPipe):
     def __init__(
-            self,
-            datapipe: Iterable[Tuple[str, BufferedIOBase]],
-            length: int = -1,
-            fieldnames: Optional[str] = None,
-            skip_rows: Optional[int] = None,
-
+        self,
+        datapipe: Iterable[Tuple[str, BufferedIOBase]],
+        length: int = -1,
+        fieldnames: Optional[str] = None,
+        skip_rows: Optional[int] = None,
     ):
         super().__init__()
         self.datapipe = datapipe
