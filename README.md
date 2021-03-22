@@ -7,7 +7,8 @@ This a proof-of-concept repository on how `torch.utils.data.datapipes` can be us
 - `pathlib.Path` should be a first-class citizen for paths.
 - `dp.iter.LoadFilesFromDisk` should have a `mode` parameter. Forcing `rb` makes it cumbersome to read from plain text 
   files. Maybe even an `opener` parameter would be better that defaults to `open` and respects `mode`.
-  
+- Files loaded with `get_file_binaries_from_pathnames` are never closed.
+
 ## Datasets
 
 Legend:
@@ -23,3 +24,4 @@ For :o: and :x:, please check out the `README.md` in the corresponding folder fo
 | [`Caltech101`](caltech101/) | :x:                |
 | [`Caltech256`](caltech256/) | :heavy_check_mark: |
 | [`CelebA`](celeba/)         | :x:                |
+| [`CIFAR100?`](cifar/)       | :heavy_check_mark: |
