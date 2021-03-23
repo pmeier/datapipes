@@ -14,6 +14,7 @@ This a proof-of-concept repository on how `torch.utils.data.datapipes` can be us
 - I'm aware that this is not possible if we are streaming archives, but if that is not the case, we should be able to 
   read specific files from an archive. Some datasets contain metadata in a separate file that should be available as 
   soon as we create the dataset rather than based on luck when it is stream with the other files.
+- `dp.iter.Map` expects an `IterDataPipe` rather than a more general `Iterable` as the other datapipes.  
 
 ## Datasets
 
@@ -27,7 +28,7 @@ For :o: and :x:, please check out the `README.md` in the corresponding folder fo
 
 | `torchvision.datasets.`     | Status             |
 |:----------------------------|--------------------|
-| [`Caltech101`](caltech101/) | :x:                |
+| [`Caltech101`](caltech101/) | :heavy_check_mark: |
 | [`Caltech256`](caltech256/) | :heavy_check_mark: |
 | [`CelebA`](celeba/)         | :x:                |
 | [`CIFAR100?`](cifar/)       | :heavy_check_mark: |
