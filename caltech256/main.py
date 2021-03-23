@@ -1,29 +1,34 @@
 import pathlib
-from typing import Any, Dict, Tuple, Union, Iterator
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 import PIL.Image
 
 import torch.utils.data.datapipes as dp
-from torch.utils.data import IterDataPipe
 from torch.utils.data.datapipes.utils.decoder import imagehandler
 
 
-class Caltech256(IterDataPipe):
-    def __init__(self, root: Union[str, pathlib.Path]) -> None:
-        self.root = pathlib.Path(root).resolve()
-
-    def __iter__(self) -> Iterator[Tuple[PIL.Image.Image, Dict[str, Any]]]:
-        dp1 = dp.iter.LoadFilesFromDisk((str(self.root / "256_ObjectCategories.tar"),))
-        dp2 = dp.iter.ReadFilesFromTar(dp1)
-        dp3 = dp.iter.RoutedDecoder(dp2, handlers=[imagehandler("pil")])
-
-        for path, image in dp3:
-            label_, cls = str(pathlib.Path(path).parent.name).split(".")
-            label = int(label_)
-
-            yield image, dict(path=path, label=label, cls=cls)
+def _caltech256_sample_map(sample: Tuple[str, Any]) -> Dict[str, Any]:
+    path, image = sample
+    label_, cls = str(pathlib.Path(path).parent.name).split(".")
+    label = int(label_)
+    return dict(image=image, path=path, label=label, cls=cls)
 
 
-for image, features in Caltech256("."):
-    assert isinstance(image, PIL.Image.Image)
-    print(features)
+def caltech256(
+    root: Union[str, pathlib.Path],
+    handler: Optional[str] = "pil",
+) -> Iterable[Dict[str, Any]]:
+    root = pathlib.Path(root).resolve()
+    datapipe: Iterable = (str(root / "256_ObjectCategories.tar"),)
+    datapipe = dp.iter.LoadFilesFromDisk(datapipe)
+    datapipe = dp.iter.ReadFilesFromTar(datapipe)
+    if handler:
+        datapipe = dp.iter.RoutedDecoder(datapipe, handlers=[imagehandler(handler)])
+    datapipe = dp.iter.Map(datapipe, fn=_caltech256_sample_map)
+
+    return datapipe
+
+
+for sample in caltech256("."):
+    assert isinstance(sample["image"], PIL.Image.Image)
+    assert isinstance(sample["label"], int)
