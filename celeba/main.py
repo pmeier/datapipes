@@ -115,7 +115,7 @@ def celeba(
     images_datapipe = _images_datapipe(root, split_datapipe, decoder=decoder)
     ann_datapipes = _ann_datapipes(root)
 
-    datapipe = DependentGroupByKey(images_datapipe, _key_fn, *ann_datapipes)
+    datapipe = DependentGroupByKey(images_datapipe, *ann_datapipes, key_fn=_key_fn)
     datapipe = dp.iter.Map(datapipe, _collate_sample)
 
     return datapipe

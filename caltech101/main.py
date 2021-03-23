@@ -79,7 +79,9 @@ def caltech101(
     anns_datapipe = dp.iter.RoutedDecoder(anns_datapipe, handlers=[mathandler()])
     anns_datapipe = dp.iter.Map(anns_datapipe, _collate_ann)
 
-    datapipe = DependentGroupByKey(images_datapipe, _images_key_fn, anns_datapipe)
+    datapipe = DependentGroupByKey(
+        images_datapipe, anns_datapipe, key_fn=_images_key_fn
+    )
     datapipe = dp.iter.Map(datapipe, fn=_collate_sample)
 
     return datapipe

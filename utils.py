@@ -102,8 +102,8 @@ class DependentGroupByKey(IterDataPipe):
     def __init__(
         self,
         datapipe: Iterable[D],
-        key_fn: Callable[[D], K],
         *dependent_data_pipes: Iterable[Tuple[K, DD]],
+        key_fn: Callable[[D], K],
     ):
         super().__init__()
         self.datapipe = datapipe
