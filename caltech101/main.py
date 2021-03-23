@@ -39,9 +39,14 @@ def _anns_key_fn(data: Tuple[str, Any]) -> Tuple[str, int]:
     return cls, idx
 
 
-def _map_samples(data: List[Tuple[str, Any]]):
+def _collate_ann(data: Tuple[str, Dict[str, Any]]):
+    key = _anns_key_fn(data)
+    return key, data
+
+
+def _collate_sample(data: List[Tuple[str, Any]]):
     image_path, image = image_data = data[0]
-    ann_path, ann = data[1]
+    _, (ann_path, ann) = data[1]
 
     cls, _ = _images_key_fn(image_data)
     obj_contour = torch.from_numpy(ann["obj_contour"])
@@ -72,11 +77,10 @@ def caltech101(
     anns_datapipe = dp.iter.LoadFilesFromDisk(anns_datapipe)
     anns_datapipe = dp.iter.ReadFilesFromTar(anns_datapipe)
     anns_datapipe = dp.iter.RoutedDecoder(anns_datapipe, handlers=[mathandler()])
+    anns_datapipe = dp.iter.Map(anns_datapipe, _collate_ann)
 
-    datapipe = DependentGroupByKey(
-        images_datapipe, _images_key_fn, (anns_datapipe, _anns_key_fn)
-    )
-    datapipe = dp.iter.Map(datapipe, fn=_map_samples)
+    datapipe = DependentGroupByKey(images_datapipe, _images_key_fn, anns_datapipe)
+    datapipe = dp.iter.Map(datapipe, fn=_collate_sample)
 
     return datapipe
 

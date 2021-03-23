@@ -1,58 +1,125 @@
 import pathlib
-from io import BufferedIOBase
-from typing import Any, Dict, Tuple, Union, Iterable, Iterator, Optional, List
-import csv
+from typing import Any, Dict, Tuple, Union, Iterable, Optional, List
 
-import PIL.Image
-
+import torch
 import torch.utils.data.datapipes as dp
-from torch.utils.data import IterDataPipe
 from torch.utils.data.datapipes.utils.decoder import imagehandler
 
+import sys
 
-class ReadRowsFromCsv(IterDataPipe):
-    def __init__(
-        self,
-        datapipe: Iterable[Tuple[str, BufferedIOBase]],
-        length: int = -1,
-        fieldnames: Optional[str] = None,
-        skip_rows: Optional[int] = None,
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
+from utils import DependentGroupByKey, DependentDrop, ReadRowsFromCsv
+
+
+SPLIT_MAP = {
+    "train": 0,
+    "valid": 1,
+    "test": 2,
+}
+
+
+def _not_in_split(data: Tuple[str, str], *, split: str) -> Tuple[str, bool]:
+    _, (image_id, split_idx) = data
+    in_split = False if split == "all" else int(split_idx) != SPLIT_MAP[split]
+    return image_id, in_split
+
+
+def _splits_datapipe(root: pathlib.Path, *, split: str) -> Iterable[Tuple[str, bool]]:
+    datapipe = (str(root / "list_eval_partition.txt"),)
+    datapipe = dp.iter.LoadFilesFromDisk(datapipe)
+    datapipe = ReadRowsFromCsv(datapipe)
+    datapipe = dp.iter.Map(datapipe, _not_in_split, fn_kwargs=dict(split=split))
+
+    return datapipe
+
+
+def _key_fn(data: Tuple[str, Any]) -> str:
+    return pathlib.Path(data[0]).name
+
+
+def _images_datapipe(
+    root: pathlib.Path,
+    split_datapipe: Iterable[Tuple[str, bool]],
+    *,
+    decoder: Optional[str]
+) -> Iterable[Tuple[str, Any]]:
+    images_datapipe = (str(root / "img_align_celeba.zip"),)
+    images_datapipe = dp.iter.LoadFilesFromDisk(images_datapipe)
+    images_datapipe = dp.iter.ReadFilesFromZip(images_datapipe)
+    images_datapipe = DependentDrop(images_datapipe, split_datapipe, key_fn=_key_fn)
+    if decoder:
+        images_datapipe = dp.iter.RoutedDecoder(
+            images_datapipe, handlers=[imagehandler(decoder)]
+        )
+
+    return images_datapipe
+
+
+def _collate_ann(data: Tuple[str, List[str]]) -> Tuple[str, List[str]]:
+    _, (key, *ann) = data
+    return key, ann
+
+
+def _ann_datapipes(root: pathlib.Path) -> List[Iterable[Tuple[str, List[str]]]]:
+    ann_datapipes = []
+    for file, csv_kwargs in (
+        ("identity_CelebA.txt", dict()),
+        ("list_attr_celeba.txt", dict(skip_rows=2)),
+        ("list_bbox_celeba.txt", dict(skip_rows=2)),
+        ("list_landmarks_align_celeba.txt", dict(skip_rows=2)),
     ):
-        super().__init__()
-        self.datapipe = datapipe
-        self.length = length
+        ann_datapipe = (str(root / file),)
+        ann_datapipe = dp.iter.LoadFilesFromDisk(ann_datapipe)
+        ann_datapipe = ReadRowsFromCsv(ann_datapipe, **csv_kwargs)
+        ann_datapipe = dp.iter.Map(ann_datapipe, _collate_ann)
 
-        self.fieldnames = fieldnames
-        self.skip_rows = skip_rows or (1 if fieldnames is not None else 0)
+        ann_datapipes.append(ann_datapipe)
 
-    def __iter__(self) -> Iterator[Tuple[str, List[str]]]:
-        for path, fh in self.datapipe:
-            for _ in range(self.skip_rows):
-                next(fh)
-
-            for row in csv.reader((line.decode() for line in fh), delimiter=" "):
-                yield path, row
+    return ann_datapipes
 
 
-# dp1 = dp.iter.LoadFilesFromDisk(("list_attr_celeba.txt",))
-# dp2 = ReadRowsFromCsv(dp1, skip_rows=2)
+def _collate_sample(data: List[Tuple[str, Any]]) -> Dict[str, Any]:
+    sample: Dict[str, Any] = {}
+
+    image_path, image = data[0]
+    sample["image_path"] = image_path
+    sample["image"] = image
+
+    _, identity_ = data[1]
+    identity = int(identity_[0])
+    sample["identity"] = identity
+
+    _, attr_ = data[2]
+    attr = torch.tensor([int(x) for x in attr_]).add(1).bool()
+    sample["attr"] = attr
+
+    _, bbox_ = data[3]
+    bbox = torch.tensor([int(x) for x in bbox_])
+    sample["bbox"] = bbox
+
+    _, landmarks_ = data[4]
+    landmarks = torch.tensor([int(x) for x in landmarks_])
+    sample["landmarks"] = landmarks
+
+    return sample
 
 
-class CelebA(IterDataPipe):
-    def __init__(self, root: Union[str, pathlib.Path]) -> None:
-        self.root = pathlib.Path(root).resolve()
+def celeba(
+    root: Union[str, pathlib.Path],
+    split: str = "train",
+    decoder: Optional[str] = "pil",
+) -> Iterable[Dict[str, Any]]:
+    root = pathlib.Path(root).resolve()
 
-    def __iter__(self) -> Iterator[Tuple[PIL.Image.Image, Dict[str, Any]]]:
-        dp1 = dp.iter.LoadFilesFromDisk((str(self.root / "img_align_celeba.zip"),))
-        dp2 = dp.iter.ReadFilesFromZip(dp1)
-        dp3 = dp.iter.RoutedDecoder(dp2, handlers=[imagehandler("pil")])
+    split_datapipe = _splits_datapipe(root, split=split)
+    images_datapipe = _images_datapipe(root, split_datapipe, decoder=decoder)
+    ann_datapipes = _ann_datapipes(root)
 
-        for path, image in dp3:
-            # pull the corresponding line based on this key out of all the text files
-            key = pathlib.Path(path).name
+    datapipe = DependentGroupByKey(images_datapipe, _key_fn, *ann_datapipes)
+    datapipe = dp.iter.Map(datapipe, _collate_sample)
 
-            yield image, dict(path=path)
+    return datapipe
 
 
-for _, features in CelebA("."):
-    print(features)
+for sample in celeba("."):
+    pass
