@@ -29,13 +29,14 @@ Legend:
 
 For :o: and :x:, please check out the `README.md` in the corresponding folder for details.
 
-| `torchvision.datasets.`             | Status             |
-|:------------------------------------|--------------------|
-| [`Caltech101`](caltech101/)         | :heavy_check_mark: |
-| [`Caltech256`](caltech256/)         | :heavy_check_mark: |
-| [`CelebA`](celeba/)                 | :heavy_check_mark: |
-| [`CIFAR100?`](cifar/)               | :heavy_check_mark: |
-| [`Coco(Detection|Captions)`](coco/) | :heavy_check_mark: |
+| `torchvision.datasets.`                    | Status             |
+|:-------------------------------------------|--------------------|
+| [`Caltech101`](caltech101/)                | :heavy_check_mark: |
+| [`Caltech256`](caltech256/)                | :heavy_check_mark: |
+| [`CelebA`](celeba/)                        | :heavy_check_mark: |
+| [`CIFAR10` / `CIFAR100`](cifar/)           | :heavy_check_mark: |
+| [`CocoDetection` / `CocoCaptions`](coco/)  | :heavy_check_mark: |
+| [`VOCDetection` / `VOCSegmentation`](voc/) | :heavy_check_mark: |
 
 ## Notes
 

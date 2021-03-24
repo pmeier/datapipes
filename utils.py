@@ -1,9 +1,12 @@
+import collections
 import csv
 import io
+import queue
 from typing import (
     Any,
     Callable,
     Dict,
+    Generic,
     Iterable,
     List,
     Iterator,
@@ -22,10 +25,12 @@ __all__ = [
     "DependentDrop",
     "DependentGroupByKey",
     "ReadRowsFromCsv",
+    "SplitByKey",
+    "ReadLineFromFile",
+    "collate_sample",
 ]
 
 D = TypeVar("D")
-DD = TypeVar("DD")
 K = TypeVar("K")
 
 
@@ -102,21 +107,21 @@ class DependentGroupByKey(IterDataPipe):
     def __init__(
         self,
         datapipe: Iterable[D],
-        *dependent_data_pipes: Iterable[Tuple[K, DD]],
+        *dependent_data_pipes: Iterable[Tuple[K, Any]],
         key_fn: Callable[[D], K],
     ):
         super().__init__()
         self.datapipe = datapipe
         self.key_fn = key_fn
         self.dependent_datapipes = dependent_data_pipes
-        self._buffers: Tuple[Dict[K, DD], ...] = tuple(
+        self._buffers: Tuple[Dict[K, Any], ...] = tuple(
             dict() for _ in range(len(dependent_data_pipes))
         )
 
-    def __iter__(self) -> Iterator[List[Union[D, DD]]]:
+    def __iter__(self) -> Iterator[List[Union[D, Any]]]:
         for data in self.datapipe:
             key = self.key_fn(data)
-            res: List[Union[D, DD]] = [
+            res: List[Union[D, Any]] = [
                 next_until_key(
                     dependent_datapipe,
                     key_fn=lambda dependent_data: dependent_data[0],
@@ -153,3 +158,66 @@ class ReadRowsFromCsv(IterDataPipe):
 
             for row in csv.reader((line.decode() for line in fh), delimiter=" "):
                 yield path, row
+
+
+class SplitByKey(Generic[D]):
+    def __init__(self, datapipe: Iterable[D], *, key_fn: Callable[[D], Any]):
+        self.datapipe = datapipe
+        self._datapipe_iterator = iter(datapipe)
+        self.key_fn = key_fn
+        self.splits = collections.defaultdict(lambda: _SplittedIterDataPipe(self))
+
+    def __getitem__(self, key: Any) -> "_SplittedIterDataPipe":
+        return self.splits[key]
+
+    def next(self) -> None:
+        data = next(self._datapipe_iterator)
+        key = self.key_fn(data)
+        self.splits[key].put(data)
+
+
+class _SplittedIterDataPipe(IterDataPipe):
+    def __init__(self, splitter: SplitByKey[D]) -> None:
+        self._splitter = splitter
+        self._queue = queue.Queue()
+
+    def __iter__(self):
+        while True:
+            while self._queue.empty():
+                self._splitter.next()
+
+            yield self._queue.get()
+
+    def put(self, data) -> None:
+        self._queue.put(data)
+
+
+class ReadLineFromFile(IterDataPipe):
+    def __init__(
+        self,
+        datapipe: Iterable[Tuple[str, io.BufferedIOBase]],
+        decode: bool = True,
+        encoding: str = "utf-8",
+        strip: bool = True,
+    ) -> None:
+        self.datapipe = datapipe
+        self.decode = decode
+        self.encoding = encoding
+        self.strip = strip
+
+    def __iter__(self) -> Iterator[Tuple[str, Union[bytes, str]]]:
+        for path, buffer in self.datapipe:
+            for line in buffer:
+                if self.decode:
+                    line = line.decode(self.encoding)
+                if self.strip:
+                    line = line.strip()
+                yield path, line
+
+
+def collate_sample(data: List[Tuple[Any, Any]]) -> Dict[str, Any]:
+    sample: Dict[str, Any] = {}
+    for _, partial_data in data:
+        if isinstance(partial_data, dict):
+            sample.update(partial_data)
+    return sample
