@@ -14,40 +14,45 @@ from utils import DependentGroupByKey, SplitByKey, ReadLineFromFile, collate_sam
 
 
 SPLIT_FOLDER = dict(detection="Main", segmentation="Segmentation")
-TARGET_FOLDER = dict(detection="Annotations", segmentation="SegmentationClass")
+TARGET_TYPE_FOLDER = dict(detection="Annotations", segmentation="SegmentationClass")
 
 
-def voc(
-    root: Union[str, pathlib.Path],
-    *,
-    year: str = "2012",
-    split: str = "train",
-    target: str = "detection",  # segmentation
-    decoder: Optional[str] = "pil",
-):
-    archive_datapipe = _make_archive_datapipe(
-        root, year=year, split=split, target=target
-    )
+class VOC:
+    def __init__(
+        self,
+        root: Union[str, pathlib.Path],
+        *,
+        year: str = "2012",
+        split: str = "train",
+        target_type: str = "detection",  # segmentation
+        decoder: Optional[str] = "pil",
+    ):
+        archive_datapipe = _make_archive_datapipe(
+            root, year=year, split=split, target_type=target_type
+        )
 
-    split_datapipe = _make_split_datapipe(
-        archive_datapipe["split"], target=target, split=split
-    )
+        split_datapipe = _make_split_datapipe(
+            archive_datapipe["split"], target_type=target_type, split=split
+        )
 
-    image_datapipe = _make_image_datapipe(archive_datapipe["image"], decoder=decoder)
-    target_datapipe = _make_target_datapipe(
-        archive_datapipe["target"], target=target, decoder=decoder
-    )
+        image_datapipe = _make_image_datapipe(
+            archive_datapipe["image"], decoder=decoder
+        )
+        target_datapipe = _make_target_datapipe(
+            archive_datapipe["target"], target_type=target_type, decoder=decoder
+        )
 
-    datapipe = DependentGroupByKey(
-        split_datapipe, image_datapipe, target_datapipe, key_fn=_group_key_fn
-    )
-    datapipe = dp.iter.Map(datapipe, collate_sample)
+        datapipe = DependentGroupByKey(
+            split_datapipe, image_datapipe, target_datapipe, key_fn=_group_key_fn
+        )
+        self.datapipe = dp.iter.Map(datapipe, collate_sample)
 
-    return datapipe
+    def __iter__(self):
+        yield from self.datapipe
 
 
 def _make_archive_datapipe(
-    root: Union[str, pathlib.Path], *, year: str, split: str, target: str
+    root: Union[str, pathlib.Path], *, year: str, split: str, target_type: str
 ) -> SplitByKey:
     root = pathlib.Path(root).resolve()
     # TODO: make this variable based on the input
@@ -57,17 +62,17 @@ def _make_archive_datapipe(
     datapipe = dp.iter.LoadFilesFromDisk(datapipe)
     datapipe = dp.iter.ReadFilesFromTar(datapipe)
     datapipe = SplitByKey(
-        datapipe, key_fn=functools.partial(_split_key_fn, target=target)
+        datapipe, key_fn=functools.partial(_split_key_fn, target_type=target_type)
     )
     return datapipe
 
 
 def _make_split_datapipe(
-    datapipe, *, target: str, split: str
+    datapipe, *, target_type: str, split: str
 ) -> Iterable[Tuple[str, str]]:
     for data in datapipe:
         path = pathlib.Path(data[0])
-        if path.parent.name == SPLIT_FOLDER[target] and path.stem == split:
+        if path.parent.name == SPLIT_FOLDER[target_type] and path.stem == split:
             return ReadLineFromFile((data,))
     else:
         raise RuntimeError
@@ -83,12 +88,12 @@ def _make_image_datapipe(
 
 
 def _make_target_datapipe(
-    datapipe: Iterable, *, target: str, decoder: Optional[str]
+    datapipe: Iterable, *, target_type: str, decoder: Optional[str]
 ) -> Iterable[Tuple[str, Dict[str, Any]]]:
-    if target == "detection":
+    if target_type == "detection":
         # TODO
         collate = _collate_target_detection
-    else:  # target == "segmentation":
+    else:  # target_type == "segmentation":
         if decoder:
             datapipe = dp.iter.RoutedDecoder(datapipe, handlers=[imagehandler(decoder)])
 
@@ -97,14 +102,14 @@ def _make_target_datapipe(
     return datapipe
 
 
-def _split_key_fn(data: Tuple[str, Any], *, target: str) -> Optional[str]:
+def _split_key_fn(data: Tuple[str, Any], *, target_type: str) -> Optional[str]:
     path = pathlib.Path(data[0])
 
     if path.parent.parent.name == "ImageSets":
         return "split"
     elif path.parent.name == "JPEGImages":
         return "image"
-    elif path.parent.name == TARGET_FOLDER[target]:
+    elif path.parent.name == TARGET_TYPE_FOLDER[target_type]:
         return "target"
 
 
@@ -123,8 +128,8 @@ def _collate_image(data: Tuple[str, Any]) -> Tuple[str, Dict[str, Any]]:
 
 def _collate_target_detection(data: Tuple) -> Tuple:
     path, xml = data
-    ann = parse_voc_xml(ET.parse(xml).getroot())["annotation"]["object"]
-    return _path_to_key(path), dict(ann_path=path, ann=ann)
+    target = parse_voc_xml(ET.parse(xml).getroot())["annotation"]["object"]
+    return _path_to_key(path), dict(target_path=path, target=target)
 
 
 # straight outta torchvision.datasets
@@ -153,5 +158,5 @@ def _collate_target_segmentation(data: Tuple) -> Tuple:
     return _path_to_key(path), dict(seg_path=path, seg=seg)
 
 
-for sample in voc("."):
-    print()
+for sample in VOC("."):
+    pass
