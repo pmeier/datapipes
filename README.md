@@ -38,6 +38,7 @@ For :o: and :x:, please check out the `README.md` in the corresponding folder fo
 | [`CocoDetection` / `CocoCaptions`](coco/)  | :heavy_check_mark: |
 | [`VOCDetection` / `VOCSegmentation`](voc/) | :heavy_check_mark: |
 | [`LSUN`](lsun/)                            | :x:                |
+| [`ImageNet`](imagenet/)                    | :heavy_check_mark: |
 
 ## Notes
 

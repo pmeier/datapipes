@@ -1,6 +1,7 @@
 import collections
 import csv
 import io
+import itertools
 import queue
 from typing import (
     Any,
@@ -28,6 +29,7 @@ __all__ = [
     "SplitByKey",
     "ReadLineFromFile",
     "collate_sample",
+    "find",
 ]
 
 D = TypeVar("D")
@@ -221,3 +223,18 @@ def collate_sample(data: List[Tuple[Any, Any]]) -> Dict[str, Any]:
         if isinstance(partial_data, dict):
             sample.update(partial_data)
     return sample
+
+
+def find(
+    datapipe: Iterable[D], key: K, key_fn: Callable[[D], K]
+) -> Tuple[D, Iterable[D]]:
+    iterator = iter(datapipe)
+    buffer: List[D] = []
+    for data in iterator:
+        key_ = key_fn(data)
+        if key_ == key:
+            return data, itertools.chain(buffer, iterator)
+        else:
+            buffer.append(data)
+    else:
+        raise RuntimeError(f"Datapipe is exhausted, but key {key} was never found")
