@@ -39,6 +39,7 @@ For :o: and :x:, please check out the `README.md` in the corresponding folder fo
 | [`VOCDetection` / `VOCSegmentation`](voc/) | :heavy_check_mark: |
 | [`LSUN`](lsun/)                            | :x:                |
 | [`ImageNet`](imagenet/)                    | :heavy_check_mark: |
+| [`HMDB51`](hmdb51/)                        | :heavy_check_mark: |
 
 ## Notes
 

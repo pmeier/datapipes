@@ -2,6 +2,7 @@ import collections
 import csv
 import io
 import itertools
+import pathlib
 import queue
 from typing import (
     Any,
@@ -18,6 +19,7 @@ from typing import (
 )
 
 from torch.utils.data import IterDataPipe
+from torch.utils.data.datapipes.utils.common import validate_pathname_binary_tuple
 
 __all__ = [
     "mathandler",
@@ -30,6 +32,7 @@ __all__ = [
     "ReadLineFromFile",
     "collate_sample",
     "find",
+    "ReadFilesFromRar",
 ]
 
 D = TypeVar("D")
@@ -238,3 +241,42 @@ def find(
             buffer.append(data)
     else:
         raise RuntimeError(f"Datapipe is exhausted, but key {key} was never found")
+
+
+class ReadFilesFromRar(IterDataPipe):
+    def __init__(self, datapipe: Iterable[Tuple[str, io.BufferedIOBase]]):
+        self._rarfile = self._verify_dependencies()
+
+        super().__init__()
+        self.datapipe: Iterable[Tuple[str, io.BufferedIOBase]] = datapipe
+
+    @staticmethod
+    def _verify_dependencies():
+        try:
+            import rarfile
+        except ImportError as error:
+            raise ModuleNotFoundError from error
+
+        try:
+            # For me bsdtar was not working
+            rarfile.tool_setup(bsdtar=False)
+        except rarfile.RarCannotExec as error:
+            raise RuntimeError from error
+
+        return rarfile
+
+    def __iter__(self) -> Iterator[Tuple[str, io.BufferedIOBase]]:
+        for data in self.datapipe:
+            validate_pathname_binary_tuple(data)
+            path, stream = data
+            rar = self._rarfile.RarFile(stream)
+            for info in rar.infolist():
+                if info.filename.endswith("/"):
+                    continue
+
+                inner_path = str(pathlib.Path(path) / info.filename)
+
+                file_obj = rar.open(info)
+                file_obj.source_rar = rar
+
+                yield inner_path, file_obj
