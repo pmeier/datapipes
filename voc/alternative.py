@@ -116,5 +116,6 @@ class VOC:
         return voc_dict
 
 
-for sample in VOC("."):
-    pass
+if __name__ == "__main__":
+    for sample in VOC("."):
+        pass

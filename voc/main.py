@@ -158,5 +158,6 @@ def _collate_target_segmentation(data: Tuple) -> Tuple:
     return _path_to_key(path), dict(seg_path=path, seg=seg)
 
 
-for sample in VOC("."):
-    pass
+if __name__ == "__main__":
+    for sample in VOC("."):
+        pass
