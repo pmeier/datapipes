@@ -37,6 +37,7 @@ For :o: and :x:, please check out the `README.md` in the corresponding folder fo
 | [`CIFAR10` / `CIFAR100`](cifar/)           | :heavy_check_mark: |
 | [`CocoDetection` / `CocoCaptions`](coco/)  | :heavy_check_mark: |
 | [`VOCDetection` / `VOCSegmentation`](voc/) | :heavy_check_mark: |
+| [`LSUN`](lsun/)                            | :x:                |
 
 ## Notes
 
