@@ -105,3 +105,13 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# macOS dir files
+.DS_Store
+
+# Editor temporaries
+*.swn
+*.swo
+*.swp
+*.swm
+*~
